@@ -15,6 +15,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+
 # Reflects database tables
 with app.app_context():
     db.metadata.reflect(bind=db.engine)
@@ -61,6 +62,23 @@ def create_record():
 
 @app.route('/nexus6/<int:record_id>', methods=['PUT'])
 def update_record(record_id):
+    try:
+        table = db.metadata.tables['nexus6']
+        updated_data = request.get_json()
+        update_statement = table.update().where(table.c.id == record_id).values(updated_data)
+        result = db.session.execute(update_statement)
+        db.session.commit()
+        if result.rowcount == 0:
+            return jsonify({"error": "Record not found"}), 404
+        updated_data["time"] = datetime.utcnow().isoformat()
+        return jsonify({"record_updated": updated_data}), 200
+    except KeyError:
+        return jsonify({"error": "Table 'nexus6' not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route('/nexus6/<int:record_id>', methods=['PATCH'])
+def patch_record(record_id):
     try:
         table = db.metadata.tables['nexus6']
         updated_data = request.get_json()
